@@ -9,7 +9,7 @@ Este programa requiere FFmpeg para convertir el audio a .mp3. Debes instalarlo y
 2) Descarga el archivo .zip de la última versión "full build" (ej. ffmpeg-7.0.1-full_build.zip).
 
 3) Descomprime el archivo en una carpeta permanente en tu PC (ej. C:\ffmpeg).
-1. Añade FFmpeg al PATH de Windows:
+Añade FFmpeg al PATH de Windows:
     Abre el menú Inicio y busca "Editar las variables de entorno del sistema".
 
     Haz clic en "Variables de entorno...".
