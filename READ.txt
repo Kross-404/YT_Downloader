@@ -1,0 +1,7 @@
+Extract the .zip file into the folder.
+
+Download ffmpeg 
+https://www.ffmpeg.org/download.html
+
+Clone ffmpeg
+git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg

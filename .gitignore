@@ -1,0 +1,9 @@
+#ignorar entorno virtual
+.venv/
+
+#ignorar ffmpeg
+ffmpeg.exe
+ffprobe.exe
+
+#ignorar los .exe
+*.exe

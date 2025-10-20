@@ -4,14 +4,19 @@ from dearpygui import dearpygui as dpg
 import ctypes
 import subprocess
 
+
+# Obtiene la ruta absoluta del directorio donde está este script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+# Esta es la ruta que le daremos a yt-dlp
+FFMPEG_DIR = script_dir
+
 # Evitamos errores de desactualización
 try:
+    # Recordatorio: Es mejor ejecutar "pip install -U yt-dlp" en la terminal
+    # antes de correr el script, pero lo dejamos por ahora.
     subprocess.run(["pip", "install", "-U", "yt_dlp"])
 except:
     print("No se pudo actualizar yt_dlp automáticamente.")
-
-# Ruta de ffmpeg
-FFMPEG_PATH = r"C:\Program Files\ffmpeg-2025-06-26-git-09cd38e9d5-full_build\bin"
 
 # Hook de progreso
 def progreso_hook(d):
@@ -28,7 +33,16 @@ def progreso_hook(d):
 # Función principal de descarga
 def descargar_mp3_gui():
     url = dpg.get_value("input_url").strip()
-    carpeta_destino = "Musica"
+    
+    # Obtener la ruta del escritorio del usuario
+    try:
+        escritorio = os.path.join(os.path.expanduser("~"), "Desktop")
+    except Exception:
+         # Fallback por si no encuentra el escritorio
+        escritorio = os.path.expanduser("~") 
+        
+    # Crear la carpeta en el escritorio
+    carpeta_destino = os.path.join(escritorio, "Musica")
 
     if not url:
         dpg.set_value("status_text", "Por favor ingresa un enlace")
@@ -39,7 +53,7 @@ def descargar_mp3_gui():
             os.makedirs(carpeta_destino)
 
         dpg.set_value("status_text", "Descargando...")
-        dpg.configure_item("progress_bar", show=True)  # <- Mostrarla antes de descargar
+        dpg.configure_item("progress_bar", show=True)
         dpg.set_value("progress_bar", 0.0) 
 
         opciones = {
@@ -52,14 +66,14 @@ def descargar_mp3_gui():
             }],
             'quiet': True,
             'noplaylist': True,
-            'ffmpeg_location': FFMPEG_PATH,
+            'ffmpeg_location' : FFMPEG_DIR,
             'progress_hooks': [progreso_hook]
         }
 
         with yt_dlp.YoutubeDL(opciones) as ydl:
             ydl.download([url])
 
-        dpg.set_value("status_text", "Descarga completa")
+        dpg.set_value("status_text", f"Descarga completa en: {carpeta_destino}")
 
     except Exception as e:
         dpg.set_value("status_text", f"Error: {str(e)}")
