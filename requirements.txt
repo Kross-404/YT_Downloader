@@ -1,3 +1,2 @@
 dearpygui==2.1.0
-ffmpeg==1.4
-yt-dlp==2025.10.14
+yt-dlp==2025.11.12

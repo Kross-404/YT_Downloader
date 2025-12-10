@@ -1,102 +1,99 @@
 import yt_dlp
 import os
 from dearpygui import dearpygui as dpg
-import ctypes
-import subprocess
+import threading # Para que la interfaz no se congele durante la descarga
 
-
-# Obtiene la ruta absoluta del directorio donde está este script
-script_dir = os.path.dirname(os.path.abspath(__file__))
-# Esta es la ruta que le daremos a yt-dlp
-FFMPEG_DIR = script_dir
-
-# Evitamos errores de desactualización
-try:
-    # Recordatorio: Es mejor ejecutar "pip install -U yt-dlp" en la terminal
-    # antes de correr el script, pero lo dejamos por ahora.
-    subprocess.run(["pip", "install", "-U", "yt_dlp"])
-except:
-    print("No se pudo actualizar yt_dlp automáticamente.")
-
-# Hook de progreso
+# ==== Funciones ====
 def progreso_hook(d):
+    """Actualiza la barra de progreso en la interfaz."""
     if d['status'] == 'downloading':
-        porcentaje = d.get("_percent_str", "0.0%").strip().replace('%', '')
+        p_str = d.get("_percent_str", "0%").replace('%', '')
         try:
-            progreso = float(porcentaje) / 100.0
+            progreso = float(p_str) / 100.0
             dpg.set_value("progress_bar", progreso)
-        except:
+            dpg.configure_item("status_text", default_value=f"Descargando: {d.get('_percent_str', '0%')}")
+        except ValueError:
             pass
     elif d['status'] == 'finished':
         dpg.set_value("progress_bar", 1.0)
+        dpg.configure_item("status_text", default_value="Procesando audio (FFmpeg)...")
 
-# Función principal de descarga
-def descargar_mp3_gui():
-    url = dpg.get_value("input_url").strip()
-    
-    # Obtener la ruta del escritorio del usuario
+def ejecutar_descarga(url, carpeta_destino):
+    """Lógica de descarga que corre en un hilo separado."""
+    opciones = {
+        'format': 'bestaudio/best',
+        'outtmpl': os.path.join(carpeta_destino, '%(title)s.%(ext)s'),
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+        'quiet': True,
+        'noplaylist': True,
+        'progress_hooks': [progreso_hook]
+    }
+
     try:
-        escritorio = os.path.join(os.path.expanduser("~"), "Desktop")
-    except Exception:
-         # Fallback por si no encuentra el escritorio
-        escritorio = os.path.expanduser("~") 
+        with yt_dlp.YoutubeDL(opciones) as ydl:
+            ydl.download([url])
         
-    # Crear la carpeta en el escritorio
-    carpeta_destino = os.path.join(escritorio, "Musica")
+        dpg.configure_item("status_text", default_value=f"¡Listo! Guardado en: {os.path.basename(carpeta_destino)}")
+        dpg.set_value("input_url", "") # Limpiar input
+        
+    except Exception as e:
+        dpg.configure_item("status_text", default_value=f"Error: {str(e)}")
 
+def boton_descargar_callback():
+    url = dpg.get_value("input_url").strip()
     if not url:
         dpg.set_value("status_text", "Por favor ingresa un enlace")
         return
 
-    try:
-        if not os.path.exists(carpeta_destino):
+    # Ruta al escritorio (compatible con Windows/Linux/Mac)
+    escritorio = os.path.join(os.path.expanduser("~"), "Desktop")
+    carpeta_destino = os.path.join(escritorio, "Musica")
+
+    if not os.path.exists(carpeta_destino):
+        try:
             os.makedirs(carpeta_destino)
+        except OSError:
+            dpg.set_value("status_text", "Error: No se pudo crear la carpeta en el Escritorio.")
+            return
 
-        dpg.set_value("status_text", "Descargando...")
-        dpg.configure_item("progress_bar", show=True)
-        dpg.set_value("progress_bar", 0.0) 
+    dpg.set_value("status_text", "Iniciando...")
+    dpg.configure_item("progress_bar", show=True)
+    dpg.set_value("progress_bar", 0.0)
 
-        opciones = {
-            'format': 'bestaudio/best',
-            'outtmpl': f'{carpeta_destino}/%(title)s.%(ext)s',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
-            'quiet': True,
-            'noplaylist': True,
-            'ffmpeg_location' : FFMPEG_DIR,
-            'progress_hooks': [progreso_hook]
-        }
+    # Ejecutamos en un Hilo (Thread) para que la ventana no se congele "No responde"
+    hilo = threading.Thread(target=ejecutar_descarga, args=(url, carpeta_destino), daemon=True)
+    hilo.start()
 
-        with yt_dlp.YoutubeDL(opciones) as ydl:
-            ydl.download([url])
+# ==== Interfaz Gráfica (GUI) ====
 
-        dpg.set_value("status_text", f"Descarga completa en: {carpeta_destino}")
-
-    except Exception as e:
-        dpg.set_value("status_text", f"Error: {str(e)}")
-
-
-# Obtener resolución del monitor
-user32 = ctypes.windll.user32
-pantalla_ancho = user32.GetSystemMetrics(0)
-pantalla_alto = user32.GetSystemMetrics(1)
-
-# ==== Interfaz ====
 dpg.create_context()
-dpg.create_viewport(title="Descargador de Musica", width=pantalla_ancho - 250, height=pantalla_alto - 250)
 
-with dpg.window(label="Descargador de Música", width=pantalla_ancho, height=pantalla_alto):
-    dpg.add_text("Descargar audio de video", color=(255, 255, 255))
-    dpg.add_input_text(label="URL del video", tag="input_url", width=pantalla_ancho - 550)
-    dpg.add_button(label="Descargar", callback=descargar_mp3_gui)
+# Ventana de tamaño fijo, más amigable
+ANCHO = 600
+ALTO = 300
+
+with dpg.window(label="Principal", tag="Primary Window"):
+    dpg.add_text("Descargador de YouTube a MP3", color=(0, 255, 0))
+    dpg.add_separator()
     dpg.add_spacer(height=10)
-    dpg.add_progress_bar(tag="progress_bar", default_value=0.0, width=pantalla_ancho - 550, show=False)
-    dpg.add_text("", tag="status_text")
+    
+    dpg.add_text("URL del video:")
+    dpg.add_input_text(tag="input_url", width=-1) # -1 ajusta al ancho disponible
+    dpg.add_spacer(height=10)
+    
+    dpg.add_button(label="DESCARGAR MP3", callback=boton_descargar_callback, width=-1, height=40)
+    dpg.add_spacer(height=10)
+    
+    dpg.add_progress_bar(tag="progress_bar", default_value=0.0, width=-1, show=False)
+    dpg.add_text("Esperando...", tag="status_text", wrap=ANCHO-20)
 
+dpg.create_viewport(title="Kross Downloader v1.1", width=ANCHO, height=ALTO, resizable=False)
 dpg.setup_dearpygui()
 dpg.show_viewport()
+dpg.set_primary_window("Primary Window", True) # Fija la ventana al viewport
 dpg.start_dearpygui()
 dpg.destroy_context()
