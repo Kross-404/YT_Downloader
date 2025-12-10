@@ -7,3 +7,11 @@ ffprobe.exe
 
 #ignorar los .exe
 *.exe
+
+# Carpetas de PyInstaller
+build/
+dist/
+*.spec
+
+# Cache de Python
+__pycache__/

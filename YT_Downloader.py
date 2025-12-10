@@ -4,6 +4,7 @@ from dearpygui import dearpygui as dpg
 import threading # Para que la interfaz no se congele durante la descarga
 
 # ==== Funciones ====
+
 def progreso_hook(d):
     """Actualiza la barra de progreso en la interfaz."""
     if d['status'] == 'downloading':
